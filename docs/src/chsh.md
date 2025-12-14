@@ -1,11 +1,137 @@
+# Overview 
+
+```@setup chsh
+using DataFrames
+
+df1 = DataFrame(
+    Q1 = ["Y", "Y", "N", "N"],
+    Q2 = ["Y", "N", "Y", "N"],
+    P = [.30, .10, .40, .20]
+)
+
+df2 = DataFrame(
+    Q1 = ["Y", "Y", "N", "N"],
+    Q2 = ["Y", "N", "Y", "N"],
+    P = [.20, .20, .10, .50]
+)
+```
+
+The purpose of this documentation is twofold: (1) to explain the Clauser–Horne–Shimony–Holt (CHSH) inequality as it relates to context measurement effects in human judgment and decision making, and (2) demonstrate how it can be tested with Bayesian parameter estimation. A context measurement effect occurs when a measurement--namely, eliciting a judgment or decision--is affected by other measurements in close temporal proximity, such that the outcomes cannot be derived or reconstructed from a single joint probability distribution over outcomes. 
+
+A simple example of a measurement context effect is an order effect in which the joint respone distribution depends on the order in which two or more measurements are made (Wang, Solloway, Shiffrin, & Busemeyer, 2014). As an example, consider the joint response distributions for two questions presented in opposite orders:
+
+### Order 1
+```@example chsh
+df1
+```
+
+### Order 2
+```@example chsh
+df2
+```
+In the example above, a measurement context effect occurs because the joint response probabilities cannot be derived from a single joint probability distribution. What this means is that the first question provides a measurement context for the next question. When the questions are asked in different orders, the resulting joint response probability distributions differ.   
+
 # CHSH Inequality 
 
-We define four attributes indexed as $j \in \{1,2,3,4\}$. The attributes could correspond to binary traits of a person, such as extroverted, intelligent, unusual and agreeable, respectively. The joint distribution of 4 binary traits has $2^4 = 16$ elements. The measurement context $c_{ij}$ corresponds to measurements (i.e., questions) about a person having traits $i$ and $j$. For measurement context $c_{12}$, one of the following answers is selected:
+The [Clauser–Horne–Shimony–Holt](https://en.wikipedia.org/wiki/CHSH_inequality) (CHSH) originates from quantum physics and is related to Bell's theorem. For our purposes, the CHSH inequality is used to identify measurement context effects across a set of measurement contexts in human judgment and decision making. If the correlations of pairs of mesurements exceeds the bounds of the CHSH inequality, a measurement context effect has occured which cannot be explained by classical probability theory. 
+
+## Intuition 
+
+Suppose a person makes four pairs of judgments about the character after reading a description. In total, there are four binary attributes:
+
+1. intelligent 
+2. extroverted
+3. unusual 
+4. agreeable 
+
+The four question pairs are (intelligent,extroverted), (unusual, extroverted), (unusual, agreeable) and (intelligent, agreeable), each constituting a unique measurement context. Consider the first measurement context (intelligent, extroverted). After reading the description, a subject is instructed to select which of the following options best describes the character:
 
 1. intelligent and extroverted
 2. not intelligent and extroverted
 3. intelligent and not extroverted
-4. not intelligent and not extrovted
+4. not intelligent and not extroverted
+
+The response options above are associated with a joint response probability distribution. As shown below, the joint response probability distribution for each measurement context can be organized into a $2\times 2$ table. 
+
+```@raw html
+<table><thead>
+  <tr>
+    <th></th>
+    <th colspan="3">Intelligent</th>
+    <th></th>
+    <th colspan="3">Unusual</th>
+  </tr></thead>
+<tbody>
+  <tr>
+    <td rowspan="3" style="vertical-align: middle;">Extroverted</td>
+    <td></td>
+    <td>Y</td>
+    <td>N</td>
+    <td rowspan="3" style="vertical-align: middle;">Extroverted</td>
+    <td></td>
+    <td>Y</td>
+    <td>N</td>
+  </tr>
+  <tr>
+    <td>Y</td>
+    <td>1</td>
+    <td>0</td>
+    <td>Y</td>
+    <td>1</td>
+    <td>0</td>
+  </tr>
+  <tr>
+    <td>N</td>
+    <td>0</td>
+    <td>0</td>
+    <td>N</td>
+    <td>0</td>
+    <td>0</td>
+  </tr>
+  <tr>
+    <td></td>
+    <td colspan="3">Unusual</td>
+    <td></td>
+    <td colspan="3">Intelligent</td>
+  </tr>
+  <tr>
+    <td rowspan="3" style="vertical-align: middle;">Agreeable</td>
+    <td></td>
+    <td>Y</td>
+    <td>N</td>
+    <td rowspan="3" style="vertical-align: middle;">Agreeable</td>
+    <td></td>
+    <td>Y</td>
+    <td>N</td>
+  </tr>
+  <tr>
+    <td>Y</td>
+    <td>1</td>
+    <td>0</td>
+    <td>Y</td>
+    <td>0</td>
+    <td>0.5</td>
+  </tr>
+  <tr>
+    <td>N</td>
+    <td>0</td>
+    <td>0</td>
+    <td>N</td>
+    <td>0.5</td>
+    <td>0</td>
+  </tr>
+  <tr>
+    <td colspan="8"></td>
+  </tr>
+</tbody></table>
+```
+As explained further below, the four $2\times 2$ joint probability tables above violate the CHSH inequality because they cannot be derived from a single joint probability distribution over the four binary attributes. 
+
+## Technical Definition
+
+We define four attributes indexed as $j \in \{1,2,3,4\}$. The attributes could correspond to binary traits of a person, such as extroverted, intelligent, unusual and agreeable, respectively. The joint distribution of 4 binary traits has $2^4 = 16$ elements. The measurement context $c_{ij}$ corresponds to measurements (i.e., questions) about a person having traits $i$ and $j$. For measurement context $c_{12}$, one of the following answers is selected:
+
+
 
 More generally, for a pair of two traits out of four triats in which order does not matter, there are a total of six measurement contexts $\{c_{12},c_{13},c_{14},c_{23},c_{24},c_{34}\}$. In this example, we will use a subset of four measurement contexts $\{c_{12},c_{23},c_{34},c_{14}\}$.
 
@@ -171,6 +297,8 @@ vline!(
 
 ## Load Packages
 
+Our first step is to load the required dependencies.
+
 ```julia 
 using Distributions
 using MCMCChains
@@ -182,14 +310,66 @@ using TuringUtilities
 ```
 
 ## Set RNG
+
+To ensure the results are reproducible, we will set the seed of the random number generator as follows:
+
 ```julia 
 Random.seed!(7847)
 ```
 
+## Bayesian Model 
+
+For each measurement context $c_{ij}$, the $4 \times 1$ joint probability vector $\boldsymbol{\theta}_{ij}$ has the following prior distribution:
+```math
+\boldsymbol{\theta}_{ij} \sim \mathrm{Dirichlet}(\mathbf{I}_4), 
+```
+
+where $\mathbf{I}_4$ is a $4\times 1$ vector of 1s, which produces a uniform distribution over joint response probabilities. The $4 \times 1$ vector of joint response frequencies $\mathbf{y}_{ij}$ for each measurement context $c_{ij}$ is distributed as follows:
+```math
+\mathbf{y}_{ij} \sim \mathrm{multinomial}(n, \boldsymbol{\theta}_{ij}) . 
+```
+
+The code block below implements the Bayesian model described above. 
+```julia 
+@model function model(; y12, y32, y34, y14, n_obs)
+    # prior distribution over response probability parameters
+    θ12 ~ Dirichlet(fill(1, 4))
+    θ32 ~ Dirichlet(fill(1, 4))
+    θ34 ~ Dirichlet(fill(1, 4))
+    θ14 ~ Dirichlet(fill(1, 4))
+
+    # data distribution 
+    y12 ~ Multinomial(n_obs, θ12)
+    y32 ~ Multinomial(n_obs, θ32)
+    y34 ~ Multinomial(n_obs, θ34)
+    y14 ~ Multinomial(n_obs, θ14)
+    # record posterior samples 
+    return (; θ12, θ32, θ34, θ14)
+end
+```
+
+The function below computes the value $z$ as defined above, which forms the test of the CHSH inequality. 
+
+```julia
+function compute_CHSH(; θ12, θ32, θ34, θ14)
+    x12 = θ12[1] + θ12[4] - θ12[2] - θ12[3]
+    x32 = θ32[1] + θ32[4] - θ32[2] - θ32[3]
+    x34 = θ34[1] + θ34[4] - θ34[2] - θ34[3]
+    x14 = θ14[1] + θ14[4] - θ14[2] - θ14[3]
+    return x12 + x32 + x34 - x14
+end
+```
+Each sample $s$ from posterior distribution $\boldsymbol{\theta}_{ij}^{(s)} \mid \mathbf{y}_{ij}$ is passed to `compute_CHSH` to form a posterior distribution of $z$ values. 
+
 ## Classical Model 
 
+In the classical model, the joint response probabilities for each measurement context are derived from a single joint response probability distribution over the four binary attributes, resulting in $2^4 = 16$ joint response probabilities. 
 
 ### Generate Data
+
+The code block below generates simulated data from the classical model. The first line samples a joint response probability vector uniformly over the 16 dimensions. The next line reshapes the vector into a $2\times 2 \times 2 \times 2$ array. The function $\Sigma$ marginalizes over the the specified dimensions to yield a $4\times 1$ joint distribution over the other two attributes. Next, we sample `n_obs` values from a multinomial distribution respresenting judgments in a given context (of which there are four).
+
+
 ```julia
 n_obs = 50
 θ = rand(Dirichlet(fill(1, 16)))
@@ -203,12 +383,14 @@ data1 = (;
     n_obs
 )
 ```
-
+The simulated data for each measurement context is summarized below:
 ```julia
 (y12 = [17, 17, 5, 11], y32 = [5, 28, 6, 11], y34 = [1, 25, 14, 10], y14 = [9, 7, 24, 10], n_obs = 50)
 ```
 
 ### Estimate Parameters
+
+In the next code block, we estimate the parameters for each measurement context using the No U-Turn sampler.
 
 ```julia
 chains1 = sample(
@@ -219,6 +401,7 @@ chains1 = sample(
     4
 )
 ```
+The output below shows that the MCMC chains converged and provides a summary of the posterior distributions. 
 
 ```julia 
 Chains MCMC chain (1000×30×4 Array{Float64, 3}):
@@ -279,6 +462,8 @@ Quantiles
 
 ### Test CHSH Inequality
 
+The code blocks below test the CHSH inequality. In the first code block, each posterior sample $\boldsymbol{\theta}_{ij}$ is passed to the function `compute_CHSH` where the CHSH value $z$ is computed. This forms a posterior distribution of $z$ values which can be tested against the bounds $-2$ and $2$. 
+
 ```julia
 pred_model1 = predict_distribution(;
     simulator = Θ -> compute_CHSH(; Θ...),
@@ -288,6 +473,8 @@ pred_model1 = predict_distribution(;
 
 post_preds1 = returned(pred_model1, chains1)
 ```
+The code block below tests whether the highest density interveral (HDI) of the posterior distribution falls outside the bounds of the CHSH inequality. 
+
 ```julia
 hpd(Chains(post_preds1[:]))
 ```
@@ -300,6 +487,7 @@ HPD
 
      param_1   -1.0210   -0.0254
 ```
+As expected, the results indicate that the HDI is within the CHSH inequality, indicating no evidence of a context measurement effect. 
 
 ## Non-Classical Model 
 
@@ -452,3 +640,9 @@ vline!(
 ```
 
 ![](assets/chsh_example.png)
+
+# References
+
+Busemeyer, J. R., & Wang, Z. (2018). Hilbert space multidimensional theory. Psychological Review, 125(4), 572.
+
+Wang, Z., Solloway, T., Shiffrin, R. M., & Busemeyer, J. R. (2014). Context effects produced by question orders reveal quantum nature of human judgments. Proceedings of the National Academy of Sciences, 111(26), 9431-9436.
